@@ -11,17 +11,25 @@ DATA_DIR="/var/lib/ceph/mon/${CLUSTER_NAME}-${HOSTNAME}"
 # create minimal ceph config
 echo "[global]
 		fsid = ${FSID}
+		ms bind ipv4 = false
 		mon initial members = ${HOSTNAME}
         mon host = ${IP_ADDR}
+		public network = fdff:f:f:e::/64
 		ms bind ipv6 = true # when using ipv6
-		ms bind ipv4 = false
-		auth_cluster_required = cephx
-		auth_service_required = cephx
-		auth_client_required = cephx
+		auth_cluster required = cephx
+		auth service required = cephx
+		auth client required = cephx
+		auth allow insecure global id reclaim = false
+		osd journal size = 1024
+		osd pool default size = 3
+		osd pool default min size = 2
+		osd pool default pg num = 333
+		osd pool default pgp num = 333
+		osd crush chooseleaf type = 1
 
-[mon.${HOSTNAME}]
-        host = ${IP_ADDR}
-        mon addr = ${HOSTNAME}:6789
+#[mon.${HOSTNAME}]
+#        host = ${IP_ADDR}
+#        mon addr = ${HOSTNAME}:6789
 " > /etc/ceph/ceph.conf
 
 ADMIN_KEY_PATH="/etc/ceph/${CLUSTER_NAME}.client.admin.keyring"
@@ -39,10 +47,8 @@ chown ceph:ceph "${CLUSTER_KEY_PATH}"
 
 monmaptool --create --add "${HOSTNAME}" "${IP_ADDR}" --fsid "${FSID}" "${MONMAP}"
 
-mkdir -p "${DATA_DIR}"
-chown -R ceph:ceph "${DATA_DIR}"
-
-ceph-mon --mkfs -i "${HOSTNAME}" --monmap "${MONAP}" --keyring "${CLUSTER_KEY_PATH}"
+sudo -u ceph mkdir "${DATA_DIR}"
+sudo -u ceph ceph-mon --mkfs -i "${HOSTNAME}" --monmap "${MONAP}" --keyring "${CLUSTER_KEY_PATH}"
 
 # start ceph
 ceph-mon --id "${HOSTNAME}" --cluster "${CLUSTER_NAME}" --setuser ceph --setgroup ceph
